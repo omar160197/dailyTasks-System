@@ -6,7 +6,6 @@ require("dotenv").config();
 module.exports = {
   loginController: async (req, res, next) => {
     const { email, password } = req.body;
-
     try {
       const employee = await User.findOne({ email });
 

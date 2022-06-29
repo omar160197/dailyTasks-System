@@ -1,17 +1,52 @@
 const DailyTask = require("../models/dailyTasksSchema");
 
+const changeCompletePersentage = (data) => {
+  if (data === "Completed") return "100.00 %";
+  if (data === "In Progress") return "---";
+  if (data === "Not Started") return "0.00 %";
+};
+
+const timeConvert = (totalHours, totalMinutes) => {
+  var num = totalMinutes;
+  var hours = num / 60;
+  var rhours = Math.floor(hours) + totalHours;
+  var minutes = (hours - rhours) * 60;
+  var rminutes = Math.round(minutes);
+  return rhours + ":" + rminutes;
+};
+
+const changeTimeSpend = (from, to) => {
+  const startHours = +from.split(":")[0];
+  const endHours = +to.split(":")[0];
+  let totalHours = Math.abs(endHours - startHours);
+
+  const startMinutes = +from.split(":")[1];
+  const endMinutes = +to.split(":")[1];
+  let totalMinutes = Math.abs(endMinutes - startMinutes);
+
+  let totalTime;
+  if (totalMinutes < 60) {
+    if (totalMinutes <= 9) {
+      totalMinutes = "0" + totalMinutes;
+    }
+    totalTime = totalHours + ":" + totalMinutes;
+    return totalTime;
+  } else if (totalMinutes === 60) {
+    totalHours += 1;
+    totalTime = totalHours + ":" + "00";
+    return totalTime;
+  } else {
+    totalTime = timeConvert(totalHours, totalMinutes);
+    return totalTime;
+  }
+};
+
 module.exports = {
   getAllOrOne: async (req, res, next) => {
     try {
-      const { taskId } = req.params;
-      const { employeeId } = req.body;
-      if (taskId) {
-        const oneTask = await DailyTask.findOne({ _id: taskId });
-        res.status(200).json(oneTask);
-      } else {
-        const allTasks = await DailyTask.find({ employeeId: employeeId });
-        res.status(200).json(allTasks);
-      }
+      const { id } = req.params;
+      const allTasks = await DailyTask.find({ employeeId: id });
+      res.status(200).json(allTasks);
     } catch (err) {
       next(err);
     }
@@ -29,30 +64,28 @@ module.exports = {
         taskDescription,
         priority,
         status,
-        completePersentage,
-        timeSpent,
       } = req.body;
 
-      const existedDailyTask = await DailyTask.findOne({ from });
-      if (!existedDailyTask) {
-        const dailyTask = new DailyTask({
-          employeeId,
-          date,
-          from,
-          to,
-          projectId,
-          category,
-          taskDescription,
-          priority,
-          status,
-          completePersentage,
-          timeSpent,
-        });
+      let calcPersentage = changeCompletePersentage(status);
+      let calcTimeSpend = changeTimeSpend(from, to);
 
-        await dailyTask.save();
-        const allTasks = await DailyTask.find({ employeeId: employeeId });
-        res.status(200).json(allTasks);
-      } else next("you cannot add two tasks in the same time");
+      const dailyTask = new DailyTask({
+        employeeId,
+        date,
+        from,
+        to,
+        projectId,
+        category,
+        taskDescription,
+        priority,
+        status,
+        completePersentage: calcPersentage,
+        timeSpent: calcTimeSpend,
+      });
+
+      await dailyTask.save();
+      const allTasks = await DailyTask.find({ employeeId: employeeId });
+      res.status(200).json(allTasks);
     } catch (error) {
       next(`cannot add new tsak ${error}`);
     }
@@ -60,6 +93,7 @@ module.exports = {
 
   updateTask: async (req, res, next) => {
     const { id } = req.params;
+
     const {
       employeeId,
       date,
@@ -70,9 +104,8 @@ module.exports = {
       taskDescription,
       priority,
       status,
-      completePersentage,
-      timeSpent,
-    } = req.body;
+    } = req.body.data;
+
     try {
       const task = await DailyTask.findOne({ _id: id });
       if (!task) {
@@ -86,8 +119,8 @@ module.exports = {
         task.taskDescription = taskDescription;
         task.priority = priority;
         task.status = status;
-        task.completePersentage = completePersentage;
-        task.timeSpent = timeSpent;
+        task.completePersentage = changeCompletePersentage(status);
+        task.timeSpent = changeTimeSpend(from, to);
 
         await task.save();
         const allTasks = await DailyTask.find({ employeeId: employeeId });
