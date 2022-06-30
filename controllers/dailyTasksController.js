@@ -93,7 +93,6 @@ module.exports = {
 
   updateTask: async (req, res, next) => {
     const { id } = req.params;
-
     const {
       employeeId,
       date,
